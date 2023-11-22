@@ -3,30 +3,60 @@
 //  CountOnMe
 //
 //  Created by Stéphane LEGUILLIER on 08/11/2023.
-//  Copyright © 2023 Vincent Saluzzo. All rights reserved.
+//  Copyright © 2023 Stéphane LEGUILLIER. All rights reserved.
 //
 
 import Foundation
 
-enum OperatorType {case add, subs, mult, div}
+
 
 class CalcModel {
 
-    // possible errors
-    enum Errors {case operatorMissing, expressionCanNotBeCalculated, operatorUnknown, operatorNotAfterNumber, Overflow,
-                      NotADigit, DivBy0, AddDigitNotPossible, AddDecimalSeparatorNotPossible, OneOperandIsNotNumber
+    enum OperatorType : String
+    {
+        case add = "+"
+        case subs = "-"
+        case mult = "x"
+        case div = "÷"
+    }
+    
+    /**
+     Errors thrown by CalcModel
+
+     *Values*
+     
+     `operatorMissing` Operator is missing in the expression for calculate it.
+     
+     `expressionCanNotBeCalculated` Something is missing in the expression to be calculated.
+     
+     `operatorNotAfterNumber` to can add an operator to expression, it has to be done after a number or just after a result
+     
+     `overflow` when calaculte the expression, the result is over the max digit permetted
+     
+     `notADigit` digit passed in the argument is not a digit 0...9
+     
+     `divBy0` When calculating the expression, a division by 0 is done
+     
+     `addDigitImpossible` When trying to add digit to the expression, the last number obtained is over the maximum number of digits permetted
+     
+     `addDecimalSeparatorNotPossible` adding a decimal separator not after an integer number
+     
+     `oneOfOperandIsNotNumber` when calculating the expression, one of the operand of the operator is not a number
+     
+     */
+    enum Errors {case operatorMissing, expressionCanNotBeCalculated, operatorNotAfterNumber, overflow,
+                      notADigit, divBy0, addDigitImpossible, addDecimalSeparatorNotPossible, oneOfOperandIsNotNumber
         var szErrorMessage: String {
             switch self {
                 case .operatorMissing: return "Opérateur manquant"
-                case .expressionCanNotBeCalculated: return "Expression se termine par un opérateur ou n'a pas d'opérateur"
-                case .operatorUnknown: return "Opérateur inconnu"
+                case .expressionCanNotBeCalculated: return "Expression se termine par un opérateur ou elle n'a pas d'opérateur"
                 case .operatorNotAfterNumber: return "Un opérateur doit être utilisé après un nombre"
-                case .Overflow: return "Le calcul a dépassé la capacité autorisée"
-                case .NotADigit: return "Touche tapée n'est pas un chiffre"
-                case .DivBy0: return "Division par 0 impossible"
-                case .AddDigitNotPossible: return "Trop de chiffres pour la partie entière ou décimale"
-                case .AddDecimalSeparatorNotPossible: return "L'expression est vide, ou contient déjà un décimal ou bien un opérateur ou résultat"
-                case .OneOperandIsNotNumber: return "Un des opérande n'est pas un nombre"
+                case .overflow: return "Le calcul a dépassé la capacité autorisée"
+                case .notADigit: return "Touche tapée n'est pas un chiffre"
+                case .divBy0: return "Division par 0 impossible"
+                case .addDigitImpossible: return "Trop de chiffres pour la partie entière ou décimale"
+                case .addDecimalSeparatorNotPossible: return "L'expression est vide, ou contient déjà un décimal ou bien un opérateur ou résultat"
+                case .oneOfOperandIsNotNumber: return "Un des opérandes n'est pas un nombre"
             }
         }
     }
@@ -34,14 +64,8 @@ class CalcModel {
     // kind of items possible
     enum ItemType {case emptyType, integerType, decimalType, operatorType, unknownType, resultType}
 
-    // operators availables and their display in the expression
-    static let aszOperatorsAvailable: [OperatorType : String] = [.add : "+", .subs : "-", .div : "÷", .mult : "x"]
     // decimal separator used in the expression
     static let szDecimalSeparator: Character = "."
-    /// number of digit accepted after the decimal separator
-    static let iPrecisionForDecimal: Int = 2
-    /// number max digit accepted for the whole part
-    static let iMaxNumberOfDigit: Int = 3
     
     // to manage the notification when expression chang
     static let oNotifNameForExpressionChanged = NSNotification.Name(rawValue: "CalcModelExpressionChanged")
@@ -51,7 +75,6 @@ class CalcModel {
     static let oNotifNameForError = NSNotification.Name(rawValue: "CalcModelErrorAlert")
     static let szErrorTypeFieldValue_For_ErrorNotification: String = "errorType"
 
-    
     // expression that will be displayed by view
     // each time it changes, it times it notifies
     private var szExpression: String = "" {
@@ -62,6 +85,20 @@ class CalcModel {
             // post notification
             NotificationCenter.default.post(name: CalcModel.oNotifNameForExpressionChanged, object: nil, userInfo: aszUserData)
         }
+    }
+    
+    /// number of digit accepted after the decimal separator
+    private var iPrecisionForDecimal: Int = 10
+    /// number max digit accepted for the whole part
+    private var iMaxNumberOfDigit: Int = 15
+    
+    /// class constructor
+    /// - Parameters:
+    ///   - iPrecisionForDecimal: number of digits after the decimal separator autorised
+    ///   - iMaxNumberOfDigit: number of digits before the decimal separator
+    init(decimalPrecision iPrecisionForDecimal: Int, maxDigitForWholePart iMaxNumberOfDigit: Int) {
+        self.iPrecisionForDecimal = iPrecisionForDecimal
+        self.iMaxNumberOfDigit = iMaxNumberOfDigit
     }
     
     /// create a notification to indicate that there is an error, the controller can choose to display it or not
@@ -108,10 +145,7 @@ class CalcModel {
     
     /// Return true if the last item of the expression can receive a decimal separator (is an integer)
     var bCanAddDecimalSeparator: Bool {
-        switch(kindOfTypeForLastItem()) {
-            case .integerType: return true
-            case .operatorType, .unknownType, .emptyType, .decimalType, .resultType: return false
-        }
+        return self.kindOfTypeForLastItem() == .integerType ? true : false
     }
     
     /// returns true if a digit can be add to the expression
@@ -123,7 +157,7 @@ class CalcModel {
             return true
         }
         
-        switch(CalcModel.kindOfItem(forItem: szLastElement))
+        switch(kindOfTypeForLastItem())
         {
             case .emptyType, .operatorType, .resultType:
                 bReturn = true
@@ -131,12 +165,12 @@ class CalcModel {
             
             case .integerType:
                 let iNumberOfDigitEntirePart = CalcModel.getNumberDigitEntirePart(forItem: szLastElement)
-                bReturn = iNumberOfDigitEntirePart < CalcModel.iMaxNumberOfDigit
+                bReturn = iNumberOfDigitEntirePart < self.iMaxNumberOfDigit
                 break
             
             case .decimalType:
                 let iPrecision = CalcModel.getPrecision(forItem: szLastElement)
-                bReturn = iPrecision < CalcModel.iPrecisionForDecimal
+                bReturn = iPrecision < self.iPrecisionForDecimal
                 break
             
             case .unknownType:
@@ -151,8 +185,10 @@ class CalcModel {
     /// - Parameter szDigit: digit to add
     /// - Returns: return true if the digit could have been added, else return false
     func addDigit(digit szDigit: String) -> Bool {
+        let bReturn: Bool = bCanAddDigit
+        
         if szDigit.count != 1 || !"0123456789".contains(szDigit) {
-            notifyError(with: .NotADigit)
+            notifyError(with: .notADigit)
             return false
         }
         
@@ -161,33 +197,28 @@ class CalcModel {
         if self.bExpressionHaveResult {
             eraseExpression()
         }
+        //we add the digit to the expression if possible, else notify error
+        self.bCanAddDigit ? self.szExpression.append(szDigit) : notifyError(with: .addDigitImpossible)
         
-        if self.bCanAddDigit {
-            self.szExpression.append(szDigit)
-            return true
-        } else {
-            notifyError(with: .AddDigitNotPossible)
-            return false
-        }
+        return bReturn
     }
     
     /// Add a decimal separator only if the last item of the expression is a integer
     /// - Returns: return true if the decimal separator have been add
     func addDecimalSeparator() -> Bool {
-        if self.bCanAddDecimalSeparator {
-            self.szExpression.append(CalcModel.szDecimalSeparator)
-            return true
-        } else {
-            notifyError(with: .AddDecimalSeparatorNotPossible)
-            return false
-        }
+        let bReturn: Bool = self.bCanAddDecimalSeparator
+        
+        self.bCanAddDecimalSeparator ? self.szExpression.append(CalcModel.szDecimalSeparator)
+                                        : notifyError(with: .addDecimalSeparatorNotPossible)
+        
+        return bReturn
     }
     
     /// Add an operator to the expression, if the expression have a result, it takes the result for the first operand
     /// - Parameter cOperator: kind of operator to add
     /// - Returns: true if the operator have been add
     func addOperator(with cOperator: OperatorType) -> Bool {
-        var bReturn: Bool = true
+        let bReturn: Bool = self.bCanAddOperator
         
         if self.bCanAddOperator {
             // If the precedent expression has been calculated
@@ -197,25 +228,10 @@ class CalcModel {
                     self.szExpression = szLastElement
                 }
             }
-            switch cOperator {
-                case .add:
-                    self.szExpression.append(" + ")
-                    break
-                    
-                case .subs:
-                    self.szExpression.append(" - ")
-                    break
-                    
-                case .mult:
-                    self.szExpression.append(" x ")
-                    break
-                    
-                case .div:
-                    self.szExpression.append(" ÷ ")
-                    break
-            }
+            //we add the new operator to the expression
+            self.szExpression.append(" " + cOperator.rawValue + " ")
+
         } else {
-            bReturn = false
             notifyError(with: .operatorNotAfterNumber)
         }
         
@@ -252,19 +268,21 @@ class CalcModel {
         
         // Iterate over operations while an operand still here
         while aszOperationsToReduce.count > 2 {
-            guard let dLeft: Decimal = Decimal(string: aszOperationsToReduce[0]), 
-                    let dRight: Decimal = Decimal(string: aszOperationsToReduce[2]) else {
-                notifyError(with: .OneOperandIsNotNumber)
+            var iNextPosOperatorToCalcule = 1
+            if let iTmp = getPositionOfNextOperatorToCalculate(with: aszOperationsToReduce) {
+                iNextPosOperatorToCalcule = iTmp
+            }
+            
+            guard let dLeft: Decimal = Decimal(string: aszOperationsToReduce[iNextPosOperatorToCalcule - 1]),
+                    let dRight: Decimal = Decimal(string: aszOperationsToReduce[iNextPosOperatorToCalcule + 1]) else {
+                notifyError(with: .oneOfOperandIsNotNumber)
                 return false
             }
-            let szOperator = aszOperationsToReduce[1]
+            let szOperator = aszOperationsToReduce[iNextPosOperatorToCalcule]
             guard let oOperator: OperatorType = CalcModel.getOperator(from: szOperator) else {
                 notifyError(with: .operatorMissing)
                 return false
             }
-            
-            print("Pour \(aszOperationsToReduce[0]) : \(dLeft.significand) § \(dLeft.magnitude) § \(dLeft.exponent)")
-            print("Pour \(aszOperationsToReduce[2]) : \(dRight.significand) § \(dRight.magnitude) § \(dRight.exponent)")
 
             var dResult: Decimal
             switch oOperator {
@@ -276,21 +294,22 @@ class CalcModel {
             
             if dResult.isNaN {
                 eraseExpression()
-                notifyError(with: .DivBy0)
+                notifyError(with: .divBy0)
                 return false
             }
             
-            if dResult >= CalcModel.maxValue() {
+            if dResult >= self.maxValue() {
                 eraseExpression()
-                notifyError(with: .Overflow)
+                notifyError(with: .overflow)
                 return false
             }
-            aszOperationsToReduce = Array(aszOperationsToReduce.dropFirst(3))
+            aszOperationsToReduce.remove(at: iNextPosOperatorToCalcule + 1)
+            aszOperationsToReduce.remove(at: iNextPosOperatorToCalcule)
+            aszOperationsToReduce.remove(at: iNextPosOperatorToCalcule - 1)
 
-        
             var dRoundedValue: Decimal = Decimal()
-            NSDecimalRound(&dRoundedValue, &dResult, CalcModel.iPrecisionForDecimal, NSDecimalNumber.RoundingMode.bankers)
-            aszOperationsToReduce.insert("\(dRoundedValue)", at: 0)
+            NSDecimalRound(&dRoundedValue, &dResult, self.iPrecisionForDecimal, NSDecimalNumber.RoundingMode.bankers)
+            aszOperationsToReduce.insert("\(dRoundedValue)", at: iNextPosOperatorToCalcule - 1)
         }
         
         self.szExpression.append(" = \(aszOperationsToReduce.first!)")
@@ -298,6 +317,14 @@ class CalcModel {
         return true
     }
     
+    
+    private func getPositionOfNextOperatorToCalculate(with aszElements: [String]) -> Int? {
+
+        return aszElements.firstIndex(where: {(szElement) -> Bool in
+            return szElement == CalcModel.OperatorType.mult.rawValue ||
+            szElement == CalcModel.OperatorType.div.rawValue
+        })
+    }
     /// to put the expression to "", used for C touch
     func eraseExpression() {
         self.szExpression = ""
@@ -327,14 +354,14 @@ class CalcModel {
     static func getNumberDigitEntirePart(forItem szItem: String) -> Int {
         let oTypeItem = CalcModel.kindOfItem(forItem: szItem)
         switch(oTypeItem) {
-        case .emptyType: return 0
-        case .operatorType, .resultType, .unknownType: return -1
-        case .integerType: return szItem.count
-        case .decimalType:
-            guard let dValue: Decimal = Decimal(string: szItem) else {
-                return -1
-            }
-            return szItem.count + dValue.exponent - 1
+            case .emptyType: return 0
+            case .operatorType, .resultType, .unknownType: return -1
+            case .integerType: return szItem.count
+            case .decimalType:
+                guard let dValue: Decimal = Decimal(string: szItem) else {
+                    return -1
+                }
+                return szItem.count + dValue.exponent - 1
         }
     }
         
@@ -345,12 +372,11 @@ class CalcModel {
         var eReturn: ItemType = .unknownType
         
         if szItem.isEmpty {
-            return .emptyType
+            eReturn = .emptyType
         }
         
-        // An operator is only one character and is in the map aszOperatorsAvailable values
-        if szItem.count == 1 && CalcModel.aszOperatorsAvailable.contains(where: { (key: OperatorType, value: String) in value == szItem }) {
-            return .operatorType
+        if let _ = OperatorType.init(rawValue: szItem) {
+            eReturn = .operatorType
         }
         
         let acDigitsCharacters = CharacterSet(charactersIn: "0123456789.")
@@ -368,6 +394,7 @@ class CalcModel {
     /// Evaluate the type of the last item
     /// - Returns: type of the last item of the expression
     private func kindOfTypeForLastItem() -> ItemType {
+        // the expression is empty, no last item
         guard let szLastElement = self.aszElements.last else {
             return ItemType.emptyType
         }
@@ -385,13 +412,13 @@ class CalcModel {
     /// - Parameter szItem: Item representing the operator in string format
     /// - Returns: type of the operator corresponding to the string representing the item
     static func getOperator(from szItem: String) -> OperatorType? {
-        return CalcModel.aszOperatorsAvailable.first(where: { $1 == szItem })?.key
+        return OperatorType.init(rawValue: szItem)
     }
     
     /// return the max value possible with the actual config of the calculate
     /// - Returns: decimal number that is consider of out of overflow of calculating
-    static func maxValue() -> Decimal {
-        let szMaxNumber: String = "1" + String(repeating: "0", count: CalcModel.iMaxNumberOfDigit)
+    private func maxValue() -> Decimal {
+        let szMaxNumber: String = "1" + String(repeating: "0", count: self.iMaxNumberOfDigit)
         
         if let dReturn = Decimal(string: szMaxNumber) {
             return dReturn

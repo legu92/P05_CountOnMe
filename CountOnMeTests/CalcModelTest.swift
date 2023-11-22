@@ -12,10 +12,13 @@ import XCTest
 final class CalcModelTest: XCTestCase {
     
     var oCalcModel: CalcModel! = nil
+    let iMaxWholePart: Int = 5
+    let iPrecisionPart: Int = 3
     
     override func setUp() {
         super.setUp()
-        oCalcModel = CalcModel()
+
+        oCalcModel = CalcModel(decimalPrecision: self.iPrecisionPart, maxDigitForWholePart: self.iMaxWholePart)
     }
     
     func testGivenCalcModelJustCreated_WhenAskingForExpression_ThenExpressionIsAEmptyString() {
@@ -465,7 +468,7 @@ final class CalcModelTest: XCTestCase {
         XCTAssertTrue(oCalcModel.calculateExpression())
         
         // MARK: - THEN
-        let szResultAttendu = "1.666666666666666666666666666666666666666".prefix(2 + CalcModel.iPrecisionForDecimal-1) + "7"
+        let szResultAttendu = "1.666666666666666666666666666666666666666".prefix(2 + self.iPrecisionPart - 1) + "7"
         XCTAssertEqual(oCalcModel.getExpression(), "5 ÷ 3 = " + szResultAttendu)
     }
     
@@ -479,7 +482,7 @@ final class CalcModelTest: XCTestCase {
         XCTAssertTrue(oCalcModel.calculateExpression())
         
         // MARK: - THEN
-        let szResultAttendu = "0.333333333333333333333333333333333333333333".prefix(2 + CalcModel.iPrecisionForDecimal)
+        let szResultAttendu = "0.333333333333333333333333333333333333333333".prefix(2 + self.iPrecisionPart)
         XCTAssertEqual(oCalcModel.getExpression(), "1 ÷ 3 = " + szResultAttendu)
     }
     
@@ -513,7 +516,7 @@ final class CalcModelTest: XCTestCase {
         var szResultExpected: String = ""
 
         // MARK: - GIVEN
-        for iLoop in 1...CalcModel.iMaxNumberOfDigit-1 {
+        for iLoop in 1...self.iMaxWholePart - 1 {
             XCTAssertTrue(oCalcModel.addDigit(digit: String(iLoop%10)))
             szResultExpected += String(iLoop%10)
         }
@@ -531,7 +534,7 @@ final class CalcModelTest: XCTestCase {
         var szResultExpected: String = ""
 
         // MARK: - GIVEN
-        for iLoop in 1...CalcModel.iMaxNumberOfDigit {
+        for iLoop in 1...self.iMaxWholePart {
             XCTAssertTrue(oCalcModel.addDigit(digit: String(iLoop%10)))
             szResultExpected += String(iLoop%10)
         }
@@ -570,8 +573,62 @@ final class CalcModelTest: XCTestCase {
 
     }
     
+    func testGivenExpressionIsMaxMinus1Capacity_WhenAdding1_thenCalculateIsOverflow() {
+        // MARK: - GIVEN
+        for _ in 1...iMaxWholePart {
+            XCTAssertTrue(oCalcModel.addDigit(digit: "9"))
+        }
+        
+        // MARK: - WHEN
+        XCTAssertTrue(oCalcModel.addOperator(with: .add))
+        XCTAssertTrue(oCalcModel.addDigit(digit: "1"))
+        
+        // MARK: - THEN
+        XCTAssertFalse(oCalcModel.calculateExpression())
+        
+    }
+    
+    func testGivenExpressionWithPlusOperatorAndMultOperotor_WhenCalculate_thenPriorisationIsOnMult() {
+        // MARK: - GIVEN
+        XCTAssertTrue(oCalcModel.addDigit(digit: "1"))
+        XCTAssertTrue(oCalcModel.addOperator(with: .add))
+        XCTAssertTrue(oCalcModel.addDigit(digit: "2"))
+        XCTAssertTrue(oCalcModel.addOperator(with: .mult))
+        XCTAssertTrue(oCalcModel.addDigit(digit: "3"))
+        
+        // MARK: - WHEN
+
+        XCTAssertTrue(oCalcModel.calculateExpression())
+        
+        // MARK: - THEN
+        XCTAssertEqual(oCalcModel.getExpression(), "1 + 2 x 3 = 7")
+        
+    }
+
+    func testGivenExpressionWithPriorityOperator_WhenCalculate_thenPriorisationIsApplied() {
+        // MARK: - GIVEN
+        XCTAssertTrue(oCalcModel.addDigit(digit: "1"))
+        XCTAssertTrue(oCalcModel.addOperator(with: .add))
+        XCTAssertTrue(oCalcModel.addDigit(digit: "2"))
+        XCTAssertTrue(oCalcModel.addOperator(with: .mult))
+        XCTAssertTrue(oCalcModel.addDigit(digit: "3"))
+        XCTAssertTrue(oCalcModel.addOperator(with: .div))
+        XCTAssertTrue(oCalcModel.addDigit(digit: "2"))
+        XCTAssertTrue(oCalcModel.addOperator(with: .subs))
+        XCTAssertTrue(oCalcModel.addDigit(digit: "9"))
+
+
+        // MARK: - WHEN
+
+        XCTAssertTrue(oCalcModel.calculateExpression())
+        
+        // MARK: - THEN
+        XCTAssertEqual(oCalcModel.getExpression(), "1 + 2 x 3 ÷ 2 - 9 = -5")
+        
+    }
+
     private func fillWithMaxDecimalPrecision() -> Bool {
-        for iLoop in 1...CalcModel.iPrecisionForDecimal {
+        for iLoop in 1...self.iPrecisionPart {
             if !oCalcModel.addDigit(digit: String(iLoop)) {
                 return false
             }

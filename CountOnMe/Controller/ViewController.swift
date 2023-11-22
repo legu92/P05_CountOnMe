@@ -9,7 +9,7 @@
 import UIKit
 
 class ViewController: UIViewController {
-    private var oCalcModel: CalcModel = CalcModel()
+    private var oCalcModel: CalcModel = CalcModel(decimalPrecision: 3, maxDigitForWholePart: 5)
     
     @IBOutlet weak var oTXTExpression: UITextView!
         
@@ -69,7 +69,7 @@ class ViewController: UIViewController {
             return
         }
         
-        self.oCalcModel.addDigit(digit: szNumberText)
+        _ = self.oCalcModel.addDigit(digit: szNumberText)
     }
     
     /// The user clic on one of the operator button
@@ -79,13 +79,13 @@ class ViewController: UIViewController {
             return
         }
         // we add operator to the model if possible
-        self.oCalcModel.addOperator(with: cOperator)
+        _ = self.oCalcModel.addOperator(with: cOperator)
     }
 
     /// The user clic on equal button
     /// - Parameter sender: ref to the button cliqued
     @IBAction func tappedEqualButton(_ sender: UIButton) {
-        self.oCalcModel.calculateExpression()
+        _ = self.oCalcModel.calculateExpression()
     }
     
     /// The user clic on clear button
@@ -97,13 +97,13 @@ class ViewController: UIViewController {
     /// The user clic on decimal separator button
     /// - Parameter sender: ref to the button cliqued
     @IBAction func tappedDecimalSeparatorButton(_ sender: Any) {
-        self.oCalcModel.addDecimalSeparator()
+        _ = self.oCalcModel.addDecimalSeparator()
     }
     
     /// Return the operand corresponding to the UIButton passed
     /// - Parameter oButton: UIButton that we want to know the operand
     /// - Returns: optional of the operand, nil if the operand has not been determined
-    private func getOperator(fromUIButton oButton: UIButton) -> OperatorType? {
+    private func getOperator(fromUIButton oButton: UIButton) -> CalcModel.OperatorType? {
         // we determine which kind of operator is it
         guard let szOperator = oButton.title(for: .normal) else {
             return nil
@@ -123,18 +123,9 @@ class ViewController: UIViewController {
     /// Control the availability for the operator buttons and give then a unvailable apparence in case of non availability
     /// - Parameter bAccess: true if need to appear available, false else not available
     private func makeOperatorButtonsAvailable(to bAccess: Bool) {
-        var fAlpha = 1.0
-        
-        if !bAccess {
-            fAlpha = 0.3
-        }
-        
-        if bAccess {
-            
-        }
         for oButton in aoBTNOperators {
             oButton.isEnabled = bAccess
-            oButton.alpha = fAlpha
+            oButton.alpha = bAccess ?  1 : 0.3
         }
     }
     
@@ -142,24 +133,14 @@ class ViewController: UIViewController {
     /// - Parameter bAccess: true if need to appear available, false else not available
     private func makeEqualButtonAvailable(to bAccess: Bool) {
         oBTNEqual.isEnabled = bAccess
-        
-        if bAccess {
-            oBTNEqual.alpha = 1
-        } else {
-            oBTNEqual.alpha = 0.3
-        }
+        oBTNEqual.alpha = bAccess ? 1 : 0.3
     }
     
     /// Control the availability for the decimal separator button and give it a unvailable apparence in case of non availability
     /// - Parameter bAccess: true if need to appear available, false else not available
     private func makeDecimalSeparatorButtonAvailable(to bAccess: Bool) {
         oBTNComma.isEnabled = bAccess
-        
-        if bAccess {
-            oBTNComma.alpha = 1
-        } else {
-            oBTNComma.alpha = 0.3
-        }
+        oBTNComma.alpha = bAccess ? 1 : 0.3
     }
     
     /// Control the availability for the digit buttons and give then a unvailable apparence in case of non availability
@@ -167,12 +148,7 @@ class ViewController: UIViewController {
     private func makeDigitButtonsAvailable(to bAccess: Bool) {
         for oButton in self.aoBTNDigits {
             oButton.isEnabled = bAccess
-            
-            if bAccess {
-                oButton.alpha = 1
-            } else {
-                oButton.alpha = 0.3
-            }
+            oButton.alpha = bAccess ? 1 : 0.3
         }
     }
                            
