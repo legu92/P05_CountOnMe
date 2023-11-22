@@ -69,18 +69,18 @@ class CalcModel {
     
     // to manage the notification when expression chang
     static let oNotifNameForExpressionChanged = NSNotification.Name(rawValue: "CalcModelExpressionChanged")
-    static let szExpressionFieldValue_For_ExpressionChangedNotification: String = "newExpression"
+    static let szExpressionFieldValueInExpressionChangedNotification: String = "newExpression"
     
     // to manage notfication when model raise an error
     static let oNotifNameForError = NSNotification.Name(rawValue: "CalcModelErrorAlert")
-    static let szErrorTypeFieldValue_For_ErrorNotification: String = "errorType"
+    static let szErrorTypeFieldValueInErrorNotification: String = "errorType"
 
     // expression that will be displayed by view
     // each time it changes, it times it notifies
     private var szExpression: String = "" {
         didSet {
             // contruct data structure to transmit value of the expression
-            let aszUserData: [String : String] = [CalcModel.szExpressionFieldValue_For_ExpressionChangedNotification : szExpression]
+            let aszUserData: [String : String] = [CalcModel.szExpressionFieldValueInExpressionChangedNotification : szExpression]
             
             // post notification
             NotificationCenter.default.post(name: CalcModel.oNotifNameForExpressionChanged, object: nil, userInfo: aszUserData)
@@ -105,7 +105,7 @@ class CalcModel {
     /// - Parameter oErrorType: error type to notify
     private func notifyError(with oErrorType: CalcModel.Errors) {
         // contruct data structure to transmitt
-        let aszUserData: [String : CalcModel.Errors] = [CalcModel.szErrorTypeFieldValue_For_ErrorNotification : oErrorType]
+        let aszUserData: [String : CalcModel.Errors] = [CalcModel.szErrorTypeFieldValueInErrorNotification : oErrorType]
         
         // post notification
         NotificationCenter.default.post(name: CalcModel.oNotifNameForError, object: nil, userInfo: aszUserData)
@@ -131,7 +131,7 @@ class CalcModel {
     
     /// True if the expression is ready to be calculated
     var bCanBeCalculated: Bool {
-        if (self.aszElements.count == 1) || bExpressionHaveResult {
+        if (self.aszElements.count == 1) || self.bExpressionHaveResult {
             return false
         }
         

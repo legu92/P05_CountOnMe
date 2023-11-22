@@ -40,7 +40,7 @@ class ViewController: UIViewController {
     /// Display the new expression receive in the notification
     /// - Parameter oNotification: oNotification received with the new expression
     @objc private func calcExpressionChanged(_ oNotification: NSNotification) {
-        if let szExpression = oNotification.userInfo?[CalcModel.szExpressionFieldValue_For_ExpressionChangedNotification] as? String {
+        if let szExpression = oNotification.userInfo?[CalcModel.szExpressionFieldValueInExpressionChangedNotification] as? String {
             self.oTXTExpression.text = szExpression
         }
         //update the accessibility button each time the expression changed
@@ -53,7 +53,7 @@ class ViewController: UIViewController {
     @objc private func displayErrorMessage(_ oNotification: NSNotification) {
         var szMessage: String = "Une erreur inconnue s'est produite"
 
-        if let oErrorType = oNotification.userInfo?[CalcModel.szErrorTypeFieldValue_For_ErrorNotification] as? CalcModel.Errors {
+        if let oErrorType = oNotification.userInfo?[CalcModel.szErrorTypeFieldValueInErrorNotification] as? CalcModel.Errors {
             szMessage = oErrorType.szErrorMessage
         }
             
@@ -114,16 +114,16 @@ class ViewController: UIViewController {
     
     /// Each case the expression change, this method is called to control the availability of the buttons
     private func updateButtonAvailibility() {
-        makeOperatorButtonsAvailable(to: oCalcModel.bCanAddOperator)
-        makeEqualButtonAvailable(to: oCalcModel.bCanBeCalculated)
-        makeDecimalSeparatorButtonAvailable(to: oCalcModel.bCanAddDecimalSeparator)
-        makeDigitButtonsAvailable(to: oCalcModel.bCanAddDigit)
+        makeOperatorButtonsAvailable(to: self.oCalcModel.bCanAddOperator)
+        makeEqualButtonAvailable(to: self.oCalcModel.bCanBeCalculated)
+        makeDecimalSeparatorButtonAvailable(to: self.oCalcModel.bCanAddDecimalSeparator)
+        makeDigitButtonsAvailable(to: self.oCalcModel.bCanAddDigit)
     }
     
     /// Control the availability for the operator buttons and give then a unvailable apparence in case of non availability
     /// - Parameter bAccess: true if need to appear available, false else not available
     private func makeOperatorButtonsAvailable(to bAccess: Bool) {
-        for oButton in aoBTNOperators {
+        for oButton in self.aoBTNOperators {
             oButton.isEnabled = bAccess
             oButton.alpha = bAccess ?  1 : 0.3
         }
@@ -132,15 +132,15 @@ class ViewController: UIViewController {
     /// Control the availability for the equal button and give it a unvailable apparence in case of non availability
     /// - Parameter bAccess: true if need to appear available, false else not available
     private func makeEqualButtonAvailable(to bAccess: Bool) {
-        oBTNEqual.isEnabled = bAccess
-        oBTNEqual.alpha = bAccess ? 1 : 0.3
+        self.oBTNEqual.isEnabled = bAccess
+        self.oBTNEqual.alpha = bAccess ? 1 : 0.3
     }
     
     /// Control the availability for the decimal separator button and give it a unvailable apparence in case of non availability
     /// - Parameter bAccess: true if need to appear available, false else not available
     private func makeDecimalSeparatorButtonAvailable(to bAccess: Bool) {
-        oBTNComma.isEnabled = bAccess
-        oBTNComma.alpha = bAccess ? 1 : 0.3
+        self.oBTNComma.isEnabled = bAccess
+        self.oBTNComma.alpha = bAccess ? 1 : 0.3
     }
     
     /// Control the availability for the digit buttons and give then a unvailable apparence in case of non availability
