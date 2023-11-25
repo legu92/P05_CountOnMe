@@ -18,6 +18,15 @@ class CalcModel {
         case subs = "-"
         case mult = "x"
         case div = "÷"
+        
+        var mathematicOperation: ((Decimal, Decimal) -> Decimal) {
+            switch self {
+                case .add: return (+)
+                case .subs: return (-)
+                case .div: return (/)
+                case .mult: return (*)
+            }
+        }
     }
     
     /**
@@ -92,6 +101,9 @@ class CalcModel {
     /// number max digit accepted for the whole part
     private var iMaxNumberOfDigit: Int = 15
     
+    /// to determine witch type of calculation to be applied (loop or recursive)
+    private var bCalculateByRecursiveMode = false
+    
     /// class constructor
     /// - Parameters:
     ///   - iPrecisionForDecimal: number of digits after the decimal separator autorised
@@ -99,6 +111,16 @@ class CalcModel {
     init(decimalPrecision iPrecisionForDecimal: Int, maxDigitForWholePart iMaxNumberOfDigit: Int) {
         self.iPrecisionForDecimal = iPrecisionForDecimal
         self.iMaxNumberOfDigit = iMaxNumberOfDigit
+    }
+    
+    /// class constructor
+    /// - Parameters:
+    ///   - iPrecisionForDecimal: number of digits after the decimal separator autorised
+    ///   - iMaxNumberOfDigit: number of digits before the decimal separator
+    ///   - bReursive: true if the calcul has to be done in recursive mode
+    convenience init(decimalPrecision iPrecisionForDecimal: Int, maxDigitForWholePart iMaxNumberOfDigit: Int, byRecusiveMethod bReursive: Bool) {
+        self.init(decimalPrecision: iPrecisionForDecimal, maxDigitForWholePart: iMaxNumberOfDigit)
+        self.bCalculateByRecursiveMode = bReursive
     }
     
     /// create a notification to indicate that there is an error, the controller can choose to display it or not
@@ -252,9 +274,17 @@ class CalcModel {
         var bReturn: Bool = false
         
         if self.bCanBeCalculated {
-            bReturn = calculateWithDecimal()
-        } else {
-            notifyError(with: .expressionCanNotBeCalculated )
+            if self.bCalculateByRecursiveMode {
+                var aszItemsToReduce: [String] = self.aszElements
+                if let dResult = calculateRecursively(with: &aszItemsToReduce) {
+                    self.szExpression.append(" = \(dResult)")
+                    bReturn = true
+                } else {
+                    print("Invalid expression")
+                }
+            } else {
+                bReturn = calculateWithDecimal()
+            }
         }
         
         return bReturn
@@ -285,13 +315,10 @@ class CalcModel {
             }
 
             var dResult: Decimal
-            switch oOperator {
-                case .add: dResult = dLeft + dRight
-                case .subs: dResult = dLeft - dRight
-                case .mult: dResult = dLeft * dRight
-                case .div: dResult = dLeft / dRight
-            }
             
+            //we use one of calculated attribute of the enum to do the correct operation
+            dResult = oOperator.mathematicOperation(dLeft, dRight)
+
             if dResult.isNaN {
                 eraseExpression()
                 notifyError(with: .divBy0)
@@ -325,6 +352,51 @@ class CalcModel {
             szElement == CalcModel.OperatorType.div.rawValue
         })
     }
+    
+    /// Transform the given array to a new array by replacing the 3 firsts items by the value passed
+    /// - Parameters:
+    ///   - dValue: reult of the calculation of the 2 first operands and its operator in the aszItems
+    ///   - aszItems: array of initial items composing the expression to calculate
+    /// - Returns: new string array after replacing the first calcul to be done in the expression by the result passed in the argument.
+    ///            Could be nil if the value is no good or expression no good
+    private func arrangeExpressionWithNewResult(for dValue: Decimal, withExpression aszItems: [String]) -> [String]? {
+        var aszReturn: [String]?
+        
+         if aszItems.count > 2 {
+             if let dValueFormatted = getDecimalWellFormatted(for: dValue) {
+                 aszReturn = aszItems
+                 aszReturn!.removeFirst(3)
+                 aszReturn!.insert("\(dValueFormatted)", at: 0)
+             }
+        }
+        
+        return aszReturn
+    }
+    
+    private func getDecimalWellFormatted(for dValue: Decimal?) -> Decimal? {
+        var dReturn: Decimal?
+        
+        guard var dValueToUse = dValue else {
+            return dReturn
+        }
+        
+        if dValueToUse.isNaN {
+            notifyError(with: .divBy0)
+            return dReturn
+        }
+        
+        if dValueToUse >= self.maxValue() {
+            notifyError(with: .overflow)
+            return dReturn
+        }
+        
+        dReturn = Decimal()
+        NSDecimalRound(&dReturn!, &dValueToUse, self.iPrecisionForDecimal, NSDecimalNumber.RoundingMode.bankers)
+        
+        return dReturn
+
+    }
+    
     /// to put the expression to "", used for C touch
     func eraseExpression() {
         self.szExpression = ""
@@ -425,6 +497,94 @@ class CalcModel {
         } else {
             return Decimal(-1)
         }
+    }
+    
+    /// - Parameter aszItems: array containing all the items of the expression, this array is changing during calculation
+    ///
+    /// - Returns: the result of the calculation of the expression passed as an array
+    private func calculateRecursively(with aszItems: inout [String]) -> Decimal? {
+        var dReturn: Decimal?
+        
+        if let dArg1 = getNextNumber(with: &aszItems) {
+            if aszItems.isEmpty {
+                dReturn = dArg1
+            } else {
+                if let oOperator1 = getNextOperator(with: &aszItems) {
+                    if let dArg2 = getNextNumber(with: &aszItems) {
+                        if oOperator1 == .mult || oOperator1 == .div || aszItems.isEmpty {
+                            // the first operator is prior, so we do the calculation with this operator
+                            if let dResult = getDecimalWellFormatted(for: oOperator1.mathematicOperation(dArg1, dArg2)) {
+                                // we insert the result in the array at the begining and we call recursively the same method
+                                aszItems.insert("\(dResult)", at: 0)
+                                dReturn = getDecimalWellFormatted(for: calculateRecursively(with: &aszItems))
+                            }
+                        } else {
+                            // the first operator is not prior
+                            // we have to check the second operator to see if it is prior operator
+                            if let oOperator2 = getNextOperator(with: &aszItems) {
+                                if oOperator2 == .div || oOperator2 == .mult {
+                                    // the second operator is prior to the first one, so we execute firt the operation with operator 2
+                                    if let dArg3 = getNextNumber(with: &aszItems)
+                                    {
+                                        if let dResult = getDecimalWellFormatted(for: oOperator2.mathematicOperation(dArg2, dArg3)) {
+                                            // we add the result with the second operator to the array
+                                            aszItems.insert("\(dResult)", at: 0)
+                                            // we add the operator 1 and the arg 1 to the array to make the first operation calling recursively
+                                            aszItems.insert(oOperator1.rawValue, at: 0)
+                                            aszItems.insert("\(dArg1)", at: 0)
+                                            dReturn = getDecimalWellFormatted(for: calculateRecursively(with: &aszItems))
+                                        }
+                                    }
+                                } else {
+                                    // operator 2 is not prior so we do the operation with operator 1 by putting back the operator 2 in the array
+                                    aszItems.insert(oOperator2.rawValue, at: 0)
+                                    // we do the operation 1 and put the result in the array to can call recursively this method
+                                    let dResult = oOperator1.mathematicOperation(dArg1, dArg2)
+                                    aszItems.insert("\(dResult)", at: 0)
+                                    dReturn = getDecimalWellFormatted(for: calculateRecursively(with: &aszItems))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return dReturn
+    }
+    
+    /// Give the decimal representing the first Item in the array and remove it from the array if it is a Decimal
+    /// - Parameter aszItems: array representing the expression to calculate
+    /// - Returns: decimal representing the first element of the expression, nil if the array is empty or if the first element is not a decimal
+    private func getNextNumber(with aszItems: inout [String]) -> Decimal? {
+        
+        if aszItems.isEmpty {
+            return nil
+        }
+        
+        guard let dreturn: Decimal = Decimal(string: aszItems[0]) else {
+            notifyError(with: .oneOfOperandIsNotNumber)
+            return nil
+        }
+        aszItems.removeFirst()
+        
+        return dreturn
+    }
+    
+    /// return the operator represnting the first element of the expression passed as an array
+    /// - Parameter aszItems: expression reprented as an array
+    /// - Returns: operator find in the first position, nil if the array was empty or if it is not an operator
+    private func getNextOperator(with aszItems: inout [String]) -> OperatorType? {
+        if aszItems.isEmpty {
+            return nil
+        }
+        
+        let szOperator = aszItems[0]
+        guard let oOperator: OperatorType = CalcModel.getOperator(from: szOperator) else {
+            notifyError(with: .operatorMissing)
+            return nil
+        }
+        aszItems.removeFirst()
+        return oOperator
     }
     
 }

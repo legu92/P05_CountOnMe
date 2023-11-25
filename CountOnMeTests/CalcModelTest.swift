@@ -18,7 +18,7 @@ final class CalcModelTest: XCTestCase {
     override func setUp() {
         super.setUp()
 
-        self.oCalcModel = CalcModel(decimalPrecision: self.iPrecisionPart, maxDigitForWholePart: self.iMaxWholePart)
+        self.oCalcModel = CalcModel(decimalPrecision: self.iPrecisionPart, maxDigitForWholePart: self.iMaxWholePart, byRecusiveMethod: true)
     }
     
     func testGivenCalcModelJustCreated_WhenAskingForExpression_ThenExpressionIsAEmptyString() {

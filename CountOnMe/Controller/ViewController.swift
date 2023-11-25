@@ -9,7 +9,7 @@
 import UIKit
 
 class ViewController: UIViewController {
-    private var oCalcModel: CalcModel = CalcModel(decimalPrecision: 3, maxDigitForWholePart: 5)
+    private var oCalcModel: CalcModel = CalcModel(decimalPrecision: 3, maxDigitForWholePart: 5, byRecusiveMethod: true)
     
     @IBOutlet weak var oTXTExpression: UITextView!
         
